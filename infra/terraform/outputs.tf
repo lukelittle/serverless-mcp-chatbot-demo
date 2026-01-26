@@ -18,29 +18,9 @@ output "api_chat_url" {
   value       = "${aws_apigatewayv2_api.main.api_endpoint}/chat"
 }
 
-output "cognito_user_pool_id" {
-  description = "Cognito User Pool ID"
-  value       = aws_cognito_user_pool.main.id
-}
-
-output "cognito_user_pool_client_id" {
-  description = "Cognito User Pool Client ID"
-  value       = aws_cognito_user_pool_client.main.id
-}
-
-output "cognito_user_pool_endpoint" {
-  description = "Cognito User Pool endpoint"
-  value       = aws_cognito_user_pool.main.endpoint
-}
-
 output "data_bucket_name" {
   description = "S3 bucket name for data"
   value       = aws_s3_bucket.data.id
-}
-
-output "allowed_email_domain" {
-  description = "Email domain restriction (CHANGE THIS FOR YOUR USE!)"
-  value       = var.allowed_email_domain
 }
 
 output "deployment_region" {
@@ -55,16 +35,22 @@ output "next_steps" {
     ✅ Infrastructure deployed successfully!
     
     Next steps:
-    1. Build Lambda: cd lambda && ./build.sh
-    2. Update frontend: Edit frontend/index.html with these values:
-       - API URL: ${aws_apigatewayv2_api.main.api_endpoint}/chat
-       - User Pool ID: ${aws_cognito_user_pool.main.id}
-       - Client ID: ${aws_cognito_user_pool_client.main.id}
-       - Region: ${var.aws_region}
-    3. Upload frontend: aws s3 cp frontend/index.html s3://${aws_s3_bucket.frontend.id}/
-    4. Visit: http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}
     
-    ⚠️  IMPORTANT: This demo restricts signups to @${var.allowed_email_domain} emails!
-        To change this, edit variables.tf and update lambda/cognito_trigger.py
+    1. Build Lambda: cd ../../lambda && ./build.sh
+    
+    2. Re-apply Terraform: terraform apply
+       (to deploy the new Lambda code)
+    
+    3. Update frontend: Edit ../../frontend/index.html
+       Change API_URL to: ${aws_apigatewayv2_api.main.api_endpoint}/chat
+    
+    4. Upload frontend: 
+       aws s3 cp ../../frontend/index.html s3://${aws_s3_bucket.frontend.id}/
+    
+    5. Visit: http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}
+    
+    That's it! FastMCP + Bedrock is fully configured. No console steps! 🚀
+    
+    📚 Read FRAMEWORK_GUIDE.md to learn about FastMCP vs. other approaches
   EOT
 }

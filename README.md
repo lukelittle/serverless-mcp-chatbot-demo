@@ -1,430 +1,418 @@
 # 🎵 Serverless MCP Chatbot Demo
 
-A serverless chatbot demonstrating **agentic AI** behavior with tool use, built for AWS User Groups and university presentations. Ask about Luke's vinyl record collection and watch the bot intelligently decide when to query the data!
+A dead-simple serverless chatbot using **FastMCP** + **AWS Bedrock**. No auth, no console setup, just code. Perfect for demos!
+
+Ask about Luke's vinyl collection and watch the bot intelligently decide when to query the data. **True agentic AI** in action! 🤖
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?logo=amazon-aws&logoColor=white)
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?logo=terraform&logoColor=white)
 
-## 🎯 Purpose
+---
 
-This project demonstrates modern serverless AI patterns for:
-- **AWS User Groups** - Show real-world serverless + AI architecture
-- **University Students** - Learn cloud development with a fun, practical example
-- **Technical Talks** - Live demo of agentic AI in under 5 minutes
+## 🎯 Why This Demo?
 
-### What Makes This "Agentic"?
+Perfect for **AWS User Groups** and **University presentations** because it's:
 
-Traditional chatbots always respond the same way. **Agentic AI** can:
-1. **Decide** whether to use tools based on the question
-2. **Execute** tools (like querying a database) automatically
-3. **Synthesize** results into natural language responses
+✅ **Simple** - Deploy in 2 minutes with `./deploy.sh`  
+✅ **No Console Setup** - Everything in code, no clicking around AWS Console  
+✅ **Agentic AI** - Watch the bot decide when to use tools  
+✅ **True MCP** - Implements Model Context Protocol standard  
+✅ **Cheap** - ~$15/month, mostly Bedrock costs  
+✅ **Educational** - Clean code, heavily commented  
 
-Try asking: *"What Grimes albums do I own?"* vs *"What is vinyl?"* - the bot only uses the tool when needed!
+### What is "Agentic"?
 
-## ⚠️ IMPORTANT: Email Restriction
+Traditional bots always do the same thing. **Agentic AI decides**:
+- Ask "What Grimes records do I have?" → ✅ Uses tool, queries CSV
+- Ask "What is vinyl?" → ❌ No tool, answers from knowledge
 
-**This demo restricts authentication to `@lukelittle.com` email addresses!**
+The bot **chooses** based on the question. That's agentic behavior!
 
-If you're using this code for your own demo, you **MUST** update:
-1. `infra/terraform/variables.tf` - Change `allowed_email_domain` default value
-2. `lambda/cognito_trigger.py` - Update the validation logic
-3. `frontend/index.html` - Update the warning banner text
+---
 
-This restriction is intentional to demonstrate Cognito pre-signup triggers, but you need to customize it!
-
-## 🏗️ Architecture
+## 🏗️ Architecture (Super Simple)
 
 ```
-┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   Browser   │─────▶│  Cognito     │      │   Lambda    │
-│  (S3 HTML)  │      │  User Pool   │      │  (Python)   │
-└─────────────┘      └──────────────┘      └─────────────┘
-       │                     │                      │
-       │                     ▼                      │
-       │              [JWT Token]                   │
-       │                     │                      │
-       └────────────────────────────────────────────┘
-                             │
-                             ▼
-                    ┌──────────────┐
-                    │ API Gateway  │
-                    │  (HTTP API)  │
-                    └──────────────┘
-                             │
-                             ▼
-                    ┌──────────────┐
-                    │   Lambda     │
-                    │   Handler    │
-                    └──────────────┘
-                             │
-                    ┌────────┴────────┐
-                    ▼                 ▼
-            ┌──────────────┐   ┌──────────┐
-            │   Bedrock    │   │    S3    │
-            │   Claude     │   │  (CSV)   │
-            │  (Tool Use)  │   │          │
-            └──────────────┘   └──────────┘
+Browser          API Gateway         Lambda               Bedrock
+(S3 HTML)    →   (Public)       →   (FastMCP)       →    (Claude)
+                                         ↓
+                                     S3 CSV Data
 ```
 
-### Flow Explanation (College Student Friendly!)
+**That's it!** No auth, no databases, just:
+1. S3 hosts the website
+2. API Gateway routes requests  
+3. Lambda runs FastMCP + Bedrock
+4. CSV file has the data
 
-1. **Frontend (S3 Website)** - A simple HTML page with authentication
-2. **Cognito** - AWS's user authentication service (like Firebase Auth)
-3. **API Gateway** - The "front door" for your API (validates JWT tokens)
-4. **Lambda** - Serverless functions that run your Python code (no servers!)
-5. **Bedrock** - Amazon's AI service (uses Claude model with tool support)
-6. **S3 CSV** - Your vinyl collection stored as a simple spreadsheet
+### Why FastMCP?
 
-### Why This Architecture?
+**FastMCP** = Model Context Protocol implementation for Python
 
-- ✅ **No servers to manage** - Lambda scales automatically
-- ✅ **Pay per use** - Only charged when someone uses it (~$0.05/month!)
-- ✅ **Built-in auth** - Cognito handles signups/logins securely
-- ✅ **AI-powered** - Bedrock provides state-of-the-art language models
-- ✅ **Simple data** - CSV file instead of complex database
-
-## 📁 Project Structure
-
-```
-serverless-mcp-chatbot-demo/
-├── infra/terraform/          # Infrastructure as Code
-│   ├── versions.tf           # Provider versions
-│   ├── variables.tf          # Configurable values
-│   ├── main.tf               # Main resources
-│   └── outputs.tf            # Deployment info
-├── lambda/                   # Python Lambda functions
-│   ├── handler.py            # Main chat handler
-│   ├── cognito_trigger.py    # Email validation
-│   ├── requirements.txt      # Python dependencies
-│   ├── build.sh              # Build script
-│   └── README.md             # Lambda docs
-├── frontend/                 # Web interface
-│   └── index.html            # Single-page app
-├── data/                     # Data files
-│   └── discogs.csv           # Vinyl collection
-├── .gitignore               # Git ignore rules
-├── LICENSE                  # MIT License
-└── README.md                # This file!
+```python
+# Define tools with a decorator - SO SIMPLE!
+@mcp.tool()
+def query_vinyl_collection(query_type: str, search_term: str) -> str:
+    """Query the vinyl collection"""
+    return results
 ```
 
-## 🚀 Quick Start
+**That's it!** FastMCP handles:
+- ✅ Tool schema generation
+- ✅ MCP protocol compliance  
+- ✅ Bedrock format conversion
+- ✅ Tool execution
+
+**vs. Manual**: Write JSON schemas, handle tool routing, parse responses  
+**vs. AgentCore**: No console setup, everything in code  
+**vs. LangChain**: Lighter, focused on MCP standard
+
+Read [FRAMEWORK_GUIDE.md](FRAMEWORK_GUIDE.md) for detailed comparison!
+
+---
+
+## 🚀 Quick Start (Seriously, It's Easy)
 
 ### Prerequisites
 
-- **AWS Account** with CLI configured (`aws configure`)
-- **Terraform** >= 1.0 ([Download](https://www.terraform.io/downloads))
-- **Python 3.12+** ([Download](https://www.python.org/downloads/))
-- **Bedrock Access** - Enable Claude 3.5 Sonnet in AWS Console
+- AWS Account with CLI configured (`aws configure`)
+- Terraform installed
+- Python 3.12+
+- Bedrock access (enable Claude in your region)
 
-### Option A: Automated Deployment (Recommended)
-
-Run the included deployment script that handles everything:
+### Deploy Everything
 
 ```bash
 ./deploy.sh
 ```
 
-This script will:
-1. Build the Lambda package
-2. Deploy infrastructure with Terraform
-3. Automatically configure the frontend with correct values
-4. Upload the frontend to S3
-5. Display your website URL
+**That's it!** The script:
+1. Builds Lambda package  
+2. Deploys infrastructure
+3. Configures frontend
+4. Uploads to S3
+5. Shows you the URL
 
-### Option B: Manual Deployment
+Visit the URL and start chatting! 🎉
 
-If you prefer to run each step manually:
-
-#### Step 1: Build Lambda Package
+### Manual Steps (If You Want Control)
 
 ```bash
-cd lambda
-./build.sh
-```
+# 1. Build Lambda
+cd lambda && ./build.sh && cd ..
 
-This creates `lambda.zip` with all dependencies for ARM64 architecture (cheaper Lambda!).
-
-### Step 2: Deploy Infrastructure
-
-```bash
+# 2. Deploy infrastructure
 cd infra/terraform
 terraform init
-terraform plan    # Review what will be created
-terraform apply   # Type 'yes' to confirm
-```
+terraform apply
 
-Terraform will create:
-- 2 S3 buckets (frontend + data)
-- Cognito User Pool + Client
-- API Gateway HTTP API
-- 2 Lambda functions
-- IAM roles and policies
-- CloudWatch log groups
+# 3. Get API URL
+terraform output api_chat_url
 
-**Important**: Save the output values! You'll need them for the frontend.
+# 4. Update frontend/index.html with API URL
 
-### Step 3: Configure Frontend
+# 5. Upload frontend
+BUCKET=$(terraform output -raw frontend_bucket_name)
+aws s3 cp ../../frontend/index.html s3://$BUCKET/
 
-Edit `frontend/index.html` and update the `CONFIG` object (around line 370):
-
-```javascript
-const CONFIG = {
-    API_URL: 'https://your-api-id.execute-api.us-east-1.amazonaws.com/chat',
-    USER_POOL_ID: 'us-east-1_xxxxxxxxx',
-    CLIENT_ID: 'xxxxxxxxxxxxxxxxxxxxxxxxxx',
-    REGION: 'us-east-1'
-};
-```
-
-Copy these values from `terraform output`.
-
-### Step 4: Upload Frontend
-
-```bash
-# Get bucket name from terraform output
-BUCKET_NAME=$(cd infra/terraform && terraform output -raw frontend_bucket_name)
-
-# Upload HTML file
-aws s3 cp frontend/index.html s3://$BUCKET_NAME/
-```
-
-### Step 5: Test It!
-
-```bash
-# Get website URL
-cd infra/terraform
+# 6. Get website URL
 terraform output frontend_website_url
 ```
 
-Visit the URL, sign up, and start chatting!
+---
 
-## 🎤 Demo Script (30 seconds)
+## 📁 Project Structure
 
-> "This is a serverless chatbot that demonstrates agentic AI. When I ask about my vinyl collection, it doesn't just respond - it decides whether to query the data. Watch: [type "What Grimes records do I have?"] - see the green 'Tool Used' badge? The AI decided to call our tool, query the CSV from S3, and synthesize an answer. But if I ask [type "What is vinyl?"], it just answers from knowledge - no tool needed. All serverless, costs under a dollar a month, and shows real-world AI + AWS patterns."
-
-## 💡 Understanding the Components
-
-### 1. Cognito (Authentication)
-
-**What it is**: AWS's managed authentication service  
-**Why we use it**: Handles user signups, logins, and JWT tokens automatically  
-**Student analogy**: Like the bouncer at a club - checks IDs before letting people in
-
-**Key concept**: Pre-signup triggers let you validate emails before accounts are created!
-
-### 2. API Gateway (HTTP API)
-
-**What it is**: Managed API hosting service  
-**Why we use it**: Routes HTTP requests to Lambda, validates JWT tokens  
-**Student analogy**: Like a receptionist - directs visitors to the right office
-
-**Why HTTP API instead of REST API?**: Simpler and 70% cheaper!
-
-### 3. Lambda (Compute)
-
-**What it is**: Serverless functions - code runs without managing servers  
-**Why we use it**: Auto-scales, pay-per-request, no maintenance  
-**Student analogy**: Like calling an Uber - you don't own the car, just use it when needed
-
-**Cost example**: 1 million requests with 512MB RAM = ~$8.35/month
-
-### 4. Bedrock (AI)
-
-**What it is**: AWS's fully managed AI service with foundation models  
-**Why we use it**: Access to Claude without managing ML infrastructure  
-**Student analogy**: Like Netflix for AI models - stream instead of download
-
-**Tool use**: Bedrock's Converse API lets models decide when to call functions!
-
-### 5. S3 (Storage)
-
-**What it is**: Object storage service  
-**Why we use it**: Host website + store CSV data, dirt cheap  
-**Student analogy**: Like Dropbox, but for applications
-
-**Cost**: ~$0.023 per GB/month (80 records = fractions of a penny!)
-
-## 🛠️ Tool Use Explained
-
-### What is MCP (Model Context Protocol)?
-
-MCP is a standard for connecting AI models to tools (APIs, databases, etc.). Our implementation demonstrates MCP concepts by:
-
-1. **Tool Definition**: Describe what the tool does (like an API spec)
-2. **Tool Execution**: Run the actual query when the model decides to use it
-3. **Result Synthesis**: Model uses tool results to answer the user
-
-### How Our Tool Works
-
-```python
-# 1. Define the tool in Bedrock format
-TOOL_DEFINITION = {
-    "name": "query_vinyl_collection",
-    "description": "Query Luke's vinyl records...",
-    "parameters": {
-        "query_type": ["artist", "label", "year", ...],
-        "search_term": "string",
-        "limit": "integer"
-    }
-}
-
-# 2. Bedrock decides when to use it
-if user_asks_about_collection:
-    call_tool("query_vinyl_collection", {"query_type": "artist", ...})
-
-# 3. Lambda executes the tool
-def query_vinyl_collection(query_type, search_term):
-    csv_data = s3.get_object(Bucket, Key)
-    results = filter_records(csv_data, query_type, search_term)
-    return format_results(results)
-
-# 4. Bedrock synthesizes the answer
-final_answer = synthesize(tool_results) + tool_context
+```
+serverless-mcp-chatbot-demo/
+├── lambda/
+│   ├── handler.py           # FastMCP + Bedrock integration
+│   ├── requirements.txt     # Just boto3 + fastmcp!
+│   └── build.sh             # Build deployment package
+├── infra/terraform/
+│   ├── main.tf              # ALL infrastructure (simple!)
+│   ├── variables.tf         # Configuration
+│   └── outputs.tf           # URLs and next steps
+├── frontend/
+│   └── index.html           # Single-file web app
+├── data/
+│   └── discogs.csv          # Vinyl collection data
+├── FRAMEWORK_GUIDE.md       # FastMCP vs alternatives
+├── DEPLOYMENT_CHECKLIST.md  # Step-by-step guide
+└── README.md                # You are here!
 ```
 
-### Demo Prompts
+**No auth code, no complex state management, no microservices - just working AI!**
 
-| Prompt | Tool Used? | Why? |
-|--------|-----------|------|
-| "What Grimes albums do I own?" | ✅ Yes | Specific collection query |
-| "Show me 4AD label records" | ✅ Yes | Filtered collection query |
-| "What vinyl did I add in 2024?" | ✅ Yes | Time-based collection query |
-| "What is vinyl?" | ❌ No | General knowledge question |
-| "How does MCP work?" | ❌ No | Technical question (not collection-specific) |
+---
+
+## 💬 How To Use
+
+### Example Prompts
+
+| Prompt | What Happens | Tool Used? |
+|--------|-------------|------------|
+| "What Grimes albums do I own?" | Queries CSV, returns results | ✅ Yes |
+| "Show me vinyl from 4AD label" | Filters by label | ✅ Yes |
+| "What records did I add in 2024?" | Filters by year | ✅ Yes |
+| "Do I have any Kraftwerk?" | Searches artist | ✅ Yes |
+| "What is vinyl?" | Answers from knowledge | ❌ No |
+| "How does MCP work?" | Explains concept | ❌ No |
+
+Watch for the **🔧 FastMCP Tool Used** badge when tools are invoked!
+
+### 30-Second Demo Script
+
+> "This chatbot demonstrates agentic AI using FastMCP and AWS Bedrock. When I ask about my vinyl collection" [type "What Grimes records do I have?"] "the AI decides to query the data - see the green badge? But if I ask" [type "What is vinyl?"] "it just answers from knowledge. The AI chooses when to use tools. All serverless, costs $15/month, true MCP protocol, and everything's in code - no console setup needed!"
+
+---
+
+## 🔧 How It Works (Under the Hood)
+
+### 1. FastMCP Tool Definition
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+# Create MCP server
+mcp = FastMCP("vinyl-collection-server")
+
+# Define tool with decorator
+@mcp.tool()
+def query_vinyl_collection(query_type: str, search_term: str, limit: int = 10) -> str:
+    """
+    Query Luke's vinyl record collection.
+    
+    Args:
+        query_type: One of: artist, label, year, title, all
+        search_term: What to search for
+        limit: Max results (default 10)
+    """
+    # Download CSV from S3
+    response = s3_client.get_object(Bucket=DATA_BUCKET, Key='discogs.csv')
+    records = parse_csv(response['Body'])
+    
+    # Filter records
+    matches = filter_records(records, query_type, search_term)
+    
+    # Return formatted results
+    return format_results(matches[:limit])
+```
+
+### 2. Bedrock Integration
+
+```python
+# Get FastMCP tools in Bedrock format
+tools = mcp.list_tools_for_llm(llm_format="bedrock")
+
+# Bedrock decides when to use tools
+response = bedrock_client.converse(
+    modelId="anthropic.claude-3-5-sonnet-20241022-v2:0",
+    messages=messages,
+    toolConfig={"tools": tools}
+)
+
+# If tool use requested, FastMCP executes it
+if response['stopReason'] == 'tool_use':
+    result = mcp.call_tool(tool_name, tool_input)
+```
+
+### 3. Agentic Loop
+
+1. User sends message
+2. Lambda invokes Bedrock with FastMCP tools
+3. Bedrock reasons about whether to use tools
+4. If yes: FastMCP executes tool, sends result back to Bedrock
+5. Bedrock synthesizes final answer
+6. Response returned to user
+
+---
 
 ## 💰 Cost Breakdown
 
-Estimated monthly costs (assuming 1000 queries/month):
+Monthly costs (1000 queries):
 
-| Service | Usage | Cost |
-|---------|-------|------|
-| S3 Storage | 2 buckets, <1MB total | $0.01 |
-| S3 Requests | 1000 GET requests | $0.01 |
-| Lambda Invocations | 2000 invocations (512MB, 2s avg) | $0.17 |
-| API Gateway | 1000 requests | $0.01 |
-| Bedrock | 1000 requests (~2000 tokens each) | $15.00 |
-| Cognito | <50 MAU (Monthly Active Users) | $0.00 |
-| **TOTAL** | | **~$15.20/month** |
+| Service | Cost | Notes |
+|---------|------|-------|
+| **Bedrock** | ~$15.00 | Main cost (Claude 3.5 Sonnet) |
+| **Lambda** | $0.17 | 1000 invocations, ARM64 |
+| **S3** | $0.02 | Storage + requests |
+| **API Gateway** | $0.01 | HTTP API (cheap!) |
+| **Total** | **~$15.20** | 🎉 |
 
-**Note**: Bedrock is the main cost. Use AWS Free Tier strategically for demos!
+**Most cost is Bedrock!** Infrastructure is basically free.
 
-## 🔧 Customization Ideas
+### Save Money Tips
+- Use ARM64 Lambda (already configured)
+- Keep conversations short (fewer tokens)
+- Use smaller Bedrock models for dev
+- Leverage AWS Free Tier
 
-### Change the Data Source
+---
 
-Replace `discogs.csv` with your own data:
-1. Update CSV structure in `data/discogs.csv`
-2. Modify `query_vinyl_collection()` in `lambda/handler.py`
-3. Update tool description and demo prompts
+## 🎨 Customization Ideas
 
-**Ideas**: Book collection, recipes, movie watchlist, Pokemon cards, plant database
+### Use Your Own Data
+
+Replace `data/discogs.csv`:
+
+```csv
+title,artist,year,genre
+"Your","Data","2024","Cool"
+```
+
+Update tool logic in `lambda/handler.py` and you're done!
+
+**Ideas**: 
+- Book collection
+- Recipe database  
+- Movie watchlist
+- Pokemon cards
+- Plant care guide
+- Anything CSV!
 
 ### Add More Tools
 
 ```python
-TOOL_DEFINITION_2 = {
-    "name": "get_record_stats",
-    "description": "Get statistics about the collection",
-    ...
-}
+@mcp.tool()
+def get_collection_stats() -> str:
+    """Get statistics about the collection"""
+    # Count records, get averages, etc.
+    return stats
+
+@mcp.tool()
+def recommend_similar(artist: str) -> str:
+    """Recommend similar artists"""
+    # Your logic here
+    return recommendations
 ```
 
-Then implement and register the new tool!
+FastMCP automatically makes them available to Bedrock!
 
 ### Use DynamoDB Instead
 
-For better performance with large datasets:
-1. Replace S3 CSV with DynamoDB table in Terraform
-2. Use `boto3.client('dynamodb')` in Lambda
-3. Update IAM permissions
+For larger datasets:
+1. Add DynamoDB table in Terraform
+2. Update tool to query DynamoDB
+3. Add IAM permissions
 
-### Remove Cognito (Public Demo)
+### Make It Multi-User
 
-For simpler public demos:
-1. Remove Cognito resources from `main.tf`
-2. Remove JWT authorizer from API Gateway
-3. Remove auth UI from `frontend/index.html`
+Add authentication (we removed it for simplicity):
+1. Add Cognito resources back to Terraform
+2. Add JWT authorizer to API Gateway  
+3. Add auth UI to frontend
+
+See git history for the old auth implementation!
+
+---
 
 ## 🐛 Troubleshooting
 
-### "User does not exist" after signup
+### "YOUR_API_URL_HERE" Error
 
-The pre-signup trigger auto-confirms users. If you see this:
-- Check CloudWatch logs: `/aws/lambda/serverless-mcp-chatbot-demo-cognito-presignup`
-- Verify email domain matches `allowed_email_domain` variable
-- Try a different email with the correct domain
+**Fix**: Update `CONFIG.API_URL` in `frontend/index.html` with actual API Gateway URL from `terraform output api_chat_url`
+
+### Tool Never Triggers
+
+**Fix**: Be more specific: "What **records** do I have by Grimes?" vs "Tell me about Grimes"
+
+### Bedrock Access Denied
+
+**Fix**: 
+1. Go to AWS Bedrock console
+2. Enable model access
+3. Choose Claude 3.5 Sonnet
+4. Wait for approval (usually instant)
+
+### Lambda Timeout
+
+**Fix**: Increase timeout in `infra/terraform/main.tf`:
+```hcl
+timeout = 120  # Increase from 60
+```
 
 ### CORS Errors
 
-Check:
-- Frontend origin matches API Gateway CORS config
-- Using `http://` not `https://` for S3 website URLs
-- Browser console for specific CORS issues
+**Fix**: Use `http://` not `https://` for S3 website URLs (they don't support HTTPS by default)
 
-### "Tool not triggering"
+### Build Fails
 
-The AI decides when to use tools. Try:
-- More specific prompts: "What **records** do I have by Grimes?"
-- Check CloudWatch logs: `/aws/lambda/serverless-mcp-chatbot-demo-chat`
-- Adjust the tool description if needed (make it more obvious when to use)
+**Fix**: 
+```bash
+cd lambda
+rm -rf package lambda.zip
+./build.sh
+```
 
-### Lambda timeout
+---
 
-If queries are slow:
-- Increase Lambda timeout in `main.tf` (currently 60s)
-- Increase memory (faster CPU with higher memory)
-- Optimize CSV parsing (consider caching)
+## 📚 Learn More
 
-### Bedrock access denied
+### Documentation
+- [Lambda README](lambda/README.md) - Deep dive on FastMCP implementation
+- [FRAMEWORK_GUIDE.md](FRAMEWORK_GUIDE.md) - FastMCP vs LangChain vs AgentCore
+- [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) - Step-by-step deployment
 
-- Enable Claude models in AWS Bedrock console
-- Check your region supports Bedrock (not all regions do!)
-- Verify IAM policy includes `bedrock:InvokeModel`
-
-## 📚 Learning Resources
-
-- [AWS Lambda Documentation](https://docs.aws.amazon.com/lambda/)
-- [Amazon Bedrock User Guide](https://docs.aws.amazon.com/bedrock/)
+### External Resources
+- [FastMCP Documentation](https://github.com/jlowin/fastmcp)
+- [Model Context Protocol](https://spec.modelcontextprotocol.io/)
+- [AWS Bedrock Docs](https://docs.aws.amazon.com/bedrock/)
 - [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [Cognito Developer Guide](https://docs.aws.amazon.com/cognito/)
-- [Model Context Protocol Specification](https://spec.modelcontextprotocol.io/)
 
-## 🤝 Contributing
-
-This is a demo project, but improvements are welcome! Ideas:
-- Additional tool implementations
-- Better error handling
-- Multi-turn conversation support
-- Streaming responses
-- Deployment automation scripts
-
-## 📄 License
-
-MIT License - Feel free to steal this code! See [LICENSE](LICENSE) for details.
+---
 
 ## 🎓 Educational Use
 
-This project is specifically designed for:
-- **AWS User Groups** presentations
-- **University coursework** (cloud computing, AI/ML, web dev)
-- **Technical workshops** and bootcamps
-- **Portfolio projects** for job hunting
+This project is **designed for teaching**:
 
-You have full permission to:
-- Present this at meetups
+✅ **AWS User Groups** - Show serverless + AI patterns  
+✅ **University Classes** - Cloud computing coursework  
+✅ **Bootcamps** - Hands-on AI + AWS project  
+✅ **Portfolio** - Demonstrate full-stack skills  
+
+**You can:**
+- Present at meetups (please do!)
 - Use in classroom settings
-- Modify for your own demos
-- Include in your resume/portfolio
+- Modify for your own demos  
+- Put on your resume
 
-Just remember to update the email domain restriction! 😄
+**Just please:**
+- Don't use it to scrape data
+- Don't run up massive Bedrock bills (monitor costs!)
+- Give credit if you fork it
+
+---
+
+## 🤝 Contributing
+
+Ideas for improvements:
+- [ ] Streaming responses
+- [ ] Conversation history
+- [ ] More example tools
+- [ ] Cost optimization tips
+- [ ] Multi-language support
+- [ ] Docker local dev setup
+
+PRs welcome! Keep it simple though - that's the whole point! 😄
+
+---
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+**TL;DR**: Use it however you want! Build cool stuff! 🚀
+
+---
 
 ## 🙋 Questions?
 
-This is a demo project by Luke Little. If you're using this for a talk or class:
-- Tag me on Twitter/LinkedIn (I'd love to see it!)
-- Open an issue if something doesn't work
-- Star the repo if you found it helpful
+- **Found a bug?** Open an issue
+- **Using this for a talk?** Tag me - I'd love to see it!
+- **Want to collaborate?** Reach out!
 
-Happy demoing! 🚀
+Made with ❤️ for the AWS + AI community
+
+**Now go deploy it and show people agentic AI!** 🎉

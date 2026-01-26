@@ -10,18 +10,6 @@ variable "project_name" {
   default     = "serverless-mcp-chatbot-demo"
 }
 
-variable "allowed_email_domain" {
-  description = "Email domain allowed for Cognito signup (e.g., lukelittle.com)"
-  type        = string
-  default     = "lukelittle.com"
-}
-
-variable "bedrock_model_id" {
-  description = "Bedrock model ID for chat/tool use"
-  type        = string
-  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-}
-
 variable "lambda_runtime" {
   description = "Lambda runtime version"
   type        = string
@@ -32,6 +20,12 @@ variable "lambda_architecture" {
   description = "Lambda architecture (arm64 is cheaper)"
   type        = string
   default     = "arm64"
+}
+
+variable "bedrock_model_id" {
+  description = "Bedrock model ID to use"
+  type        = string
+  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 }
 
 variable "log_retention_days" {

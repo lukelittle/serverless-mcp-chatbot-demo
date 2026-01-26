@@ -1,6 +1,9 @@
 """
-Serverless MCP Chatbot Demo - Main Lambda Handler
-Demonstrates agentic tool use with Bedrock and a vinyl collection query tool.
+Serverless MCP Chatbot Demo - FastMCP + Bedrock Implementation
+TRUE Model Context Protocol with FastMCP! No console setup, just code.
+
+This is SIMPLE - FastMCP provides MCP protocol, Bedrock does reasoning.
+Everything in code, fully automated with Terraform!
 """
 
 import os
@@ -8,8 +11,10 @@ import json
 import logging
 import csv
 from io import StringIO
+from typing import Dict, Any
 import boto3
 from botocore.exceptions import ClientError
+from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -25,51 +30,34 @@ FRONTEND_ORIGIN = os.environ.get('FRONTEND_ORIGIN', '*')
 s3_client = boto3.client('s3')
 bedrock_client = boto3.client('bedrock-runtime')
 
-# Tool definition for Bedrock
-TOOL_DEFINITION = {
-    "toolSpec": {
-        "name": "query_vinyl_collection",
-        "description": "Query Luke's vinyl record collection from his Discogs export. Use this tool when the user asks about specific records, artists, labels, years, or wants to browse the collection. Do NOT use this for general music trivia or questions unrelated to the collection.",
-        "inputSchema": {
-            "json": {
-                "type": "object",
-                "properties": {
-                    "query_type": {
-                        "type": "string",
-                        "description": "Type of query to perform",
-                        "enum": ["artist", "label", "year", "title", "all"]
-                    },
-                    "search_term": {
-                        "type": "string",
-                        "description": "The term to search for (artist name, label, year, or title). Use 'all' for query_type 'all'."
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of results to return",
-                        "default": 10
-                    }
-                },
-                "required": ["query_type", "search_term"]
-            }
-        }
-    }
-}
+# Create FastMCP server - TRUE MCP Protocol! 🎉
+mcp = FastMCP("vinyl-collection-server")
 
+logger.info(f"🚀 FastMCP Server initialized | Model: {BEDROCK_MODEL_ID}")
 
-def query_vinyl_collection(query_type, search_term, limit=10):
+# ============================================================================
+# MCP TOOL DEFINITION - Use the @mcp.tool() decorator!
+# This is what FastMCP is all about - clean, simple tool definitions
+# ============================================================================
+
+@mcp.tool()
+def query_vinyl_collection(query_type: str, search_term: str, limit: int = 10) -> str:
     """
-    Tool implementation: Query vinyl collection from S3 CSV.
+    Query Luke's vinyl record collection from his Discogs export.
+    
+    Use this tool when users ask about specific records, artists, labels, years,
+    or want to browse the collection. Do NOT use for general music trivia.
     
     Args:
-        query_type: Type of query (artist, label, year, title, all)
-        search_term: Term to search for
-        limit: Max results to return
+        query_type: Type of query - one of: artist, label, year, title, all
+        search_term: The term to search for (artist name, label, year, or title)
+        limit: Maximum number of results to return (default 10, max 50)
         
     Returns:
-        Formatted string with results
+        Formatted list of matching vinyl records from the collection
     """
     try:
-        logger.info(f"Querying vinyl collection: type={query_type}, term={search_term}, limit={limit}")
+        logger.info(f"🎵 MCP Tool Called: query_vinyl_collection | type={query_type}, term={search_term}")
         
         # Download CSV from S3
         response = s3_client.get_object(Bucket=DATA_BUCKET, Key=DATA_KEY)
@@ -79,7 +67,7 @@ def query_vinyl_collection(query_type, search_term, limit=10):
         csv_reader = csv.DictReader(StringIO(csv_content))
         records = list(csv_reader)
         
-        logger.info(f"Loaded {len(records)} records from CSV")
+        logger.info(f"📀 Loaded {len(records)} records from CSV")
         
         # Filter records based on query type
         matches = []
@@ -97,9 +85,9 @@ def query_vinyl_collection(query_type, search_term, limit=10):
             matches = [r for r in records if search_lower in r.get('Title', '').lower()]
         
         # Limit results
-        matches = matches[:limit]
+        matches = matches[:min(limit, 50)]
         
-        logger.info(f"Found {len(matches)} matching records")
+        logger.info(f"✅ Found {len(matches)} matching records")
         
         # Format results
         if not matches:
@@ -128,73 +116,90 @@ def query_vinyl_collection(query_type, search_term, limit=10):
         logger.error(f"S3 error: {e}")
         return f"Error accessing vinyl collection: {str(e)}"
     except Exception as e:
-        logger.error(f"Error querying vinyl collection: {e}")
+        logger.error(f"Error querying vinyl collection: {e}", exc_info=True)
         return f"Error querying collection: {str(e)}"
 
 
-def invoke_bedrock_with_tools(user_message, conversation_history=None):
+# ============================================================================
+# BEDROCK + FASTMCP INTEGRATION
+# FastMCP generates tool definitions, Bedrock does the reasoning
+# ============================================================================
+
+def invoke_bedrock_with_mcp_tools(user_message: str) -> tuple[str, bool]:
     """
-    Invoke Bedrock with tool use capability.
+    Invoke Bedrock with FastMCP tool definitions.
+    
+    This is the magic! FastMCP provides MCP-compliant tool definitions,
+    Bedrock decides when to use them. Best of both worlds!
+    
+    Flow:
+    1. Get tool definitions from FastMCP server
+    2. Send to Bedrock with user message
+    3. Bedrock decides whether to call tools
+    4. If tool use: FastMCP executes, return result to Bedrock
+    5. Bedrock synthesizes final answer
     
     Args:
         user_message: User's message
-        conversation_history: Previous conversation messages
         
     Returns:
         tuple: (reply_text, tool_used_flag)
     """
-    if conversation_history is None:
-        conversation_history = []
-    
-    # Add user message to history
-    messages = conversation_history + [
-        {
+    try:
+        # Get MCP tool definitions - FastMCP converts to Bedrock format!
+        tools = mcp.list_tools_for_llm(llm_format="bedrock")
+        
+        logger.info(f"🔧 FastMCP Tools available: {[t['toolSpec']['name'] for t in tools]}")
+        
+        # Build conversation
+        messages = [{
             "role": "user",
             "content": [{"text": user_message}]
-        }
-    ]
-    
-    system_prompt = [
-        {
-            "text": """You are a helpful assistant that can query Luke's vinyl record collection. 
-When users ask about records in the collection, use the query_vinyl_collection tool. 
-Keep responses concise and demo-friendly (2-3 sentences max).
-For general music questions not about the specific collection, answer normally without using the tool."""
-        }
-    ]
-    
-    tool_used = False
-    max_iterations = 5  # Prevent infinite loops
-    
-    for iteration in range(max_iterations):
-        try:
-            logger.info(f"Bedrock iteration {iteration + 1}")
+        }]
+        
+        system_prompt = [{
+            "text": """You are a helpful assistant that can query Luke's vinyl record collection.
+
+When users ask about specific records in the collection, use the query_vinyl_collection tool.
+Keep responses concise and demo-friendly (2-3 sentences typically).
+
+For general music questions not about the specific collection, answer from your knowledge without using tools.
+
+Be enthusiastic about music! 🎵"""
+        }]
+        
+        tool_used = False
+        max_iterations = 5
+        
+        # Agentic loop with tool use
+        for iteration in range(max_iterations):
+            logger.info(f"🔄 Bedrock iteration {iteration + 1}")
             
-            # Call Bedrock Converse API
+            # Call Bedrock Converse API with MCP tools
             response = bedrock_client.converse(
                 modelId=BEDROCK_MODEL_ID,
                 messages=messages,
                 system=system_prompt,
-                toolConfig={
-                    "tools": [TOOL_DEFINITION]
-                },
+                toolConfig={"tools": tools},
                 inferenceConfig={
                     "maxTokens": 2000,
                     "temperature": 0.7
                 }
             )
             
-            logger.info(f"Bedrock response stop reason: {response['stopReason']}")
+            stop_reason = response['stopReason']
+            logger.info(f"⚡ Bedrock stop reason: {stop_reason}")
             
-            # Get the assistant's response
+            # Get assistant's response
             assistant_message = response['output']['message']
             messages.append(assistant_message)
             
             # Check if tool use was requested
-            if response['stopReason'] == 'tool_use':
+            if stop_reason == 'tool_use':
                 tool_used = True
+                logger.info("🔧 Tool use requested by Bedrock!")
                 
-                # Process tool requests
+                # Process tool requests using FastMCP
                 tool_results = []
                 for content_block in assistant_message['content']:
                     if 'toolUse' in content_block:
@@ -203,59 +208,59 @@ For general music questions not about the specific collection, answer normally w
                         tool_input = tool_use_block['input']
                         tool_use_id = tool_use_block['toolUseId']
                         
-                        logger.info(f"Tool requested: {tool_name} with input: {tool_input}")
+                        logger.info(f"🛠️  Calling MCP tool: {tool_name} | Input: {tool_input}")
                         
-                        # Execute the tool
-                        if tool_name == 'query_vinyl_collection':
-                            result = query_vinyl_collection(
-                                query_type=tool_input.get('query_type'),
-                                search_term=tool_input.get('search_term'),
-                                limit=tool_input.get('limit', 10)
-                            )
-                        else:
-                            result = f"Unknown tool: {tool_name}"
+                        # Execute tool via FastMCP
+                        result = mcp.call_tool(tool_name, tool_input)
                         
-                        logger.info(f"Tool result: {result[:200]}...")
+                        logger.info(f"📊 Tool result: {result[:200]}...")
                         
                         tool_results.append({
                             "toolResult": {
                                 "toolUseId": tool_use_id,
-                                "content": [{"text": result}]
+                                "content": [{"text": str(result)}]
                             }
                         })
                 
-                # Add tool results to conversation
+                # Send tool results back to Bedrock
                 messages.append({
                     "role": "user",
                     "content": tool_results
                 })
                 
-                # Continue the loop to get the final response
+                # Continue loop to get final answer
                 continue
-            
+                
             else:
-                # End of turn - extract final text response
+                # End of turn - extract final response
                 final_response = ""
                 for content_block in assistant_message['content']:
                     if 'text' in content_block:
                         final_response += content_block['text']
                 
-                logger.info(f"Final response: {final_response[:200]}...")
+                logger.info(f"✅ Final response: {final_response[:200]}...")
                 return final_response, tool_used
         
-        except ClientError as e:
-            logger.error(f"Bedrock error: {e}")
-            return f"Sorry, I encountered an error: {str(e)}", tool_used
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            return f"Sorry, something went wrong: {str(e)}", tool_used
-    
-    return "I reached the maximum number of tool iterations. Please rephrase your question.", tool_used
+        return "Maximum iterations reached. Please rephrase your question.", tool_used
+        
+    except ClientError as e:
+        logger.error(f"Bedrock error: {e}", exc_info=True)
+        return f"Sorry, I encountered an error: {str(e)}", False
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        return f"Sorry, something went wrong: {str(e)}", False
 
 
-def lambda_handler(event, context):
+# ============================================================================
+# LAMBDA HANDLER
+# ============================================================================
+
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Main Lambda handler for chat endpoint.
+    
+    Simple! Just parse request, call Bedrock with FastMCP tools, return response.
+    No console setup, no manual configuration - everything in code! 🎉
     
     Args:
         event: API Gateway event
@@ -264,7 +269,7 @@ def lambda_handler(event, context):
     Returns:
         API Gateway response
     """
-    logger.info(f"Request event: {json.dumps(event)}")
+    logger.info(f"📨 Request received | FastMCP + Bedrock")
     
     try:
         # Parse request body
@@ -287,10 +292,10 @@ def lambda_handler(event, context):
                 })
             }
         
-        logger.info(f"Processing message: {user_message}")
+        logger.info(f"💬 Processing: {user_message}")
         
-        # Invoke Bedrock with tool use
-        reply, tool_used = invoke_bedrock_with_tools(user_message)
+        # Invoke Bedrock with FastMCP tools
+        reply, tool_used = invoke_bedrock_with_mcp_tools(user_message)
         
         # Return response
         return {
@@ -302,12 +307,12 @@ def lambda_handler(event, context):
             'body': json.dumps({
                 'reply': reply,
                 'tool_used': tool_used,
-                'mode': 'bedrock-converse'
+                'mode': 'fastmcp'
             })
         }
     
     except Exception as e:
-        logger.error(f"Handler error: {e}", exc_info=True)
+        logger.error(f"❌ Handler error: {e}", exc_info=True)
         return {
             'statusCode': 500,
             'headers': {

@@ -60,140 +60,8 @@ resource "aws_s3_object" "discogs_csv" {
 }
 
 # ============================================================================
-# COGNITO USER POOL
-# ============================================================================
-
-resource "aws_cognito_user_pool" "main" {
-  name = "${var.project_name}-user-pool"
-
-  alias_attributes         = ["email"]
-  auto_verified_attributes = ["email"]
-
-  password_policy {
-    minimum_length    = 8
-    require_lowercase = true
-    require_numbers   = true
-    require_symbols   = false
-    require_uppercase = true
-  }
-
-  email_configuration {
-    email_sending_account = "COGNITO_DEFAULT"
-  }
-
-  schema {
-    name                = "email"
-    attribute_data_type = "String"
-    required            = true
-    mutable             = true
-
-    string_attribute_constraints {
-      min_length = 1
-      max_length = 256
-    }
-  }
-
-  lambda_config {
-    pre_sign_up = aws_lambda_function.cognito_presignup.arn
-  }
-
-  tags = {
-    Name = "${var.project_name}-user-pool"
-  }
-}
-
-resource "aws_cognito_user_pool_client" "main" {
-  name         = "${var.project_name}-client"
-  user_pool_id = aws_cognito_user_pool.main.id
-
-  generate_secret                      = false
-  allowed_oauth_flows_user_pool_client = false
-  
-  explicit_auth_flows = [
-    "ALLOW_USER_SRP_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH"
-  ]
-
-  prevent_user_existence_errors = "ENABLED"
-}
-
-# ============================================================================
-# COGNITO PRE-SIGNUP LAMBDA TRIGGER
-# ============================================================================
-
-data "archive_file" "cognito_presignup_lambda" {
-  type        = "zip"
-  source_file = "${path.module}/../../lambda/cognito_trigger.py"
-  output_path = "${path.module}/../../lambda/cognito_trigger.zip"
-}
-
-resource "aws_lambda_function" "cognito_presignup" {
-  filename         = data.archive_file.cognito_presignup_lambda.output_path
-  function_name    = "${var.project_name}-cognito-presignup"
-  role             = aws_iam_role.cognito_presignup_lambda.arn
-  handler          = "cognito_trigger.lambda_handler"
-  source_code_hash = data.archive_file.cognito_presignup_lambda.output_base64sha256
-  runtime          = var.lambda_runtime
-  architecture     = var.lambda_architecture
-  timeout          = 10
-
-  environment {
-    variables = {
-      ALLOWED_EMAIL_DOMAIN = var.allowed_email_domain
-      PROJECT_TAG          = var.project_name
-    }
-  }
-
-  tags = {
-    Name = "${var.project_name}-cognito-presignup"
-  }
-}
-
-resource "aws_cloudwatch_log_group" "cognito_presignup_lambda" {
-  name              = "/aws/lambda/${aws_lambda_function.cognito_presignup.function_name}"
-  retention_in_days = var.log_retention_days
-
-  tags = {
-    Name = "${var.project_name}-cognito-presignup-logs"
-  }
-}
-
-resource "aws_iam_role" "cognito_presignup_lambda" {
-  name = "${var.project_name}-cognito-presignup-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = {
-    Name = "${var.project_name}-cognito-presignup-role"
-  }
-}
-
-resource "aws_iam_role_policy_attachment" "cognito_presignup_lambda_basic" {
-  role       = aws_iam_role.cognito_presignup_lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_lambda_permission" "cognito_presignup" {
-  statement_id  = "AllowCognitoInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.cognito_presignup.function_name
-  principal     = "cognito-idp.amazonaws.com"
-  source_arn    = aws_cognito_user_pool.main.arn
-}
-
-# ============================================================================
-# MAIN CHAT LAMBDA FUNCTION
+# LAMBDA FUNCTION (FastMCP + Bedrock)
+# Just ONE Lambda! FastMCP embedded, no separate action group Lambda needed
 # ============================================================================
 
 resource "aws_lambda_function" "chat" {
@@ -209,11 +77,11 @@ resource "aws_lambda_function" "chat" {
 
   environment {
     variables = {
-      PROJECT_TAG       = var.project_name
-      DATA_BUCKET       = aws_s3_bucket.data.id
-      DATA_KEY          = "discogs.csv"
-      BEDROCK_MODEL_ID  = var.bedrock_model_id
-      FRONTEND_ORIGIN   = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
+      PROJECT_TAG      = var.project_name
+      DATA_BUCKET      = aws_s3_bucket.data.id
+      DATA_KEY         = "discogs.csv"
+      BEDROCK_MODEL_ID = var.bedrock_model_id
+      FRONTEND_ORIGIN  = "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
     }
   }
 
@@ -222,9 +90,7 @@ resource "aws_lambda_function" "chat" {
   }
   
   lifecycle {
-    ignore_changes = [
-      source_code_hash
-    ]
+    ignore_changes = [source_code_hash]
   }
 }
 
@@ -289,7 +155,7 @@ resource "aws_iam_role_policy" "chat_lambda_policy" {
 }
 
 # ============================================================================
-# API GATEWAY HTTP API
+# API GATEWAY HTTP API (No Auth - Public Demo!)
 # ============================================================================
 
 resource "aws_apigatewayv2_api" "main" {
@@ -297,28 +163,14 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = [
-      "http://${aws_s3_bucket_website_configuration.frontend.website_endpoint}"
-    ]
-    allow_methods = ["POST", "OPTIONS"]
-    allow_headers = ["content-type", "authorization"]
+    allow_origins = ["*"]  # Public API for demos!
+    allow_methods = ["POST", "OPTIONS", "GET"]
+    allow_headers = ["content-type"]
     max_age       = 300
   }
 
   tags = {
     Name = "${var.project_name}-api"
-  }
-}
-
-resource "aws_apigatewayv2_authorizer" "cognito" {
-  api_id           = aws_apigatewayv2_api.main.id
-  authorizer_type  = "JWT"
-  identity_sources = ["$request.header.Authorization"]
-  name             = "cognito-authorizer"
-
-  jwt_configuration {
-    audience = [aws_cognito_user_pool_client.main.id]
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
   }
 }
 
@@ -330,11 +182,10 @@ resource "aws_apigatewayv2_integration" "chat" {
 }
 
 resource "aws_apigatewayv2_route" "chat" {
-  api_id             = aws_apigatewayv2_api.main.id
-  route_key          = "POST /chat"
-  target             = "integrations/${aws_apigatewayv2_integration.chat.id}"
-  authorization_type = "JWT"
-  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /chat"
+  target    = "integrations/${aws_apigatewayv2_integration.chat.id}"
+  # No authorization! Public for demos
 }
 
 resource "aws_apigatewayv2_stage" "default" {
