@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinyl Collection Chatbot Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.7/dist/amazon-cognito-identity.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .warning-banner {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .warning-banner strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        
+        .auth-container {
+            padding: 30px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .auth-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .auth-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+        
+        .auth-form {
+            display: none;
+        }
+        
+        .auth-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .chat-container {
+            display: none;
+            padding: 0;
+        }
+        
+        .chat-container.active {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+        
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-header h2 {
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .logout-btn {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+        }
+        
+        .message.user .message-content {
+            background: #667eea;
+            color: white;
+        }
+        
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .tool-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+        
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+        }
+        
+        .chat-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .send-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .example-prompts {
+            padding: 10px 20px;
+            font-size: 13px;
+            color: #666;
+            background: #f8f9fa;
+        }
+        
+        .example-prompts strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .example-prompts button {
+            margin: 5px 5px 5px 0;
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #667eea;
+            color: #667eea;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .example-prompts button:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 Vinyl Collection Chatbot</h1>
+            <p>Ask me about Luke's record collection!</p>
+        </div>
+        
+        <div class="warning-banner">
+            <strong>⚠️ Demo Restriction Notice</strong>
+            This demo only allows signups with @lukelittle.com email addresses. 
+            If you're using this code for your own demo, you MUST update the <code>allowed_email_domain</code> 
+            variable in Terraform and the <code>cognito_trigger.py</code> Lambda function!
+        </div>
+        
+        <!-- Auth Container -->
+        <div class="auth-container" id="authContainer">
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchTab('login')">Login</button>
+                <button class="auth-tab" onclick="switchTab('signup')">Sign Up</button>
+            </div>
+            
+            <div id="authError" style="display:none;" class="error-message"></div>
+            <div id="authSuccess" style="display:none;" class="success-message"></div>
+            
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form active" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required placeholder="your.email@lukelittle.com">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn" id="loginBtn">Login</button>
+            </form>
+            
+            <!-- Signup Form -->
+            <form id="signupForm" class="auth-form" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="signupEmail">Email (@lukelittle.com only)</label>
+                    <input type="email" id="signupEmail" required placeholder="your.email@lukelittle.com">
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password (8+ chars, upper+lower+number)</label>
+                    <input type="password" id="signupPassword" required placeholder="Create a password">
+                </div>
+                <button type="submit" class="btn" id="signupBtn">Sign Up</button>
+            </form>
+        </div>
+        
+        <!-- Chat Container -->
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-header">
+                <h2>Chat with the bot</h2>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+            
+            <div class="example-prompts">
+                <strong>Try these prompts:</strong>
+                <button onclick="sendExamplePrompt('What Grimes albums do I own?')">Grimes records</button>
+                <button onclick="sendExamplePrompt('Show me vinyl from 4AD label')">4AD label</button>
+                <button onclick="sendExamplePrompt('What records did I add in 2024?')">2024 additions</button>
+                <button onclick="sendExamplePrompt('Do I have any Kraftwerk?')">Kraftwerk</button>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages"></div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <input type="text" 
+                           class="chat-input" 
+                           id="chatInput" 
+                           placeholder="Ask about the vinyl collection..."
+                           onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== CONFIGURATION - UPDATE THESE AFTER TERRAFORM APPLY ==============
+        const CONFIG = {
+            API_URL: 'YOUR_API_URL_HERE/chat',  // Update with API Gateway URL
+            USER_POOL_ID: 'YOUR_USER_POOL_ID',  // Update with Cognito User Pool ID
+            CLIENT_ID: 'YOUR_CLIENT_ID',        // Update with Cognito Client ID
+            REGION: 'us-east-1'                 // Update with your AWS region
+        };
+        // ================================================================================
+        
+        let userPool;
+        let currentUser;
+        let idToken;
+        
+        // Initialize Cognito
+        function initCognito() {
+            const poolData = {
+                UserPoolId: CONFIG.USER_POOL_ID,
+                ClientId: CONFIG.CLIENT_ID
+            };
+            userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
+            
+            // Check if user is already logged in
+            currentUser = userPool.getCurrentUser();
+            if (currentUser) {
+                currentUser.getSession((err, session) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    if (session.isValid()) {
+                        idToken = session.getIdToken().getJwtToken();
+                        showChat();
+                    }
+                });
+            }
+        }
+        
+        // Switch between login and signup tabs
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const forms = document.querySelectorAll('.auth-form');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            forms.forEach(f => f.classList.remove('active'));
+            
+            if (tab === 'login') {
+                tabs[0].classList.add('active');
+                document.getElementById('loginForm').classList.add('active');
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('signupForm').classList.add('active');
+            }
+            
+            hideMessages();
+        }
+        
+        // Handle signup
+        function handleSignup(event) {
+            event.preventDefault();
+            hideMessages();
+            
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            const attributeList = [
+                new AmazonCognitoIdentity.CognitoUserAttribute({
+                    Name: 'email',
+                    Value: email
+                })
+            ];
+            
+            document.getElementById('signupBtn').disabled = true;
+            
+            userPool.signUp(email, password, attributeList, null, (err, result) => {
+                document.getElementById('signupBtn').disabled = false;
+                
+                if (err) {
+                    showError(err.message);
+                    return;
+                }
+                
+                showSuccess('Account created successfully! You can now login.');
+                switchTab('login');
+            });
+        }
+        
+        // Handle login
+        function handleLogin(event) {
+            event.preventDefault();
+            hideMessages();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const authenticationData = {
+                Username: email,
+                Password: password
+            };
+            
+            const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+            
+            const userData = {
+                Username: email,
+                Pool: userPool
+            };
+            
+            const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+            
+            document.getElementById('loginBtn').disabled = true;
+            
+            cognitoUser.authenticateUser(authenticationDetails, {
+                onSuccess: (result) => {
+                    idToken = result.getIdToken().getJwtToken();
+                    currentUser = cognitoUser;
+                    showChat();
+                },
+                onFailure: (err) => {
+                    document.getElementById('loginBtn').disabled = false;
+                    showError(err.message);
+                }
+            });
+        }
+        
+        // Handle logout
+        function handleLogout() {
+            if (currentUser) {
+                currentUser.signOut();
+            }
+            idToken = null;
+            document.getElementById('authContainer').style.display = 'block';
+            document.getElementById('chatContainer').classList.remove('active');
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+        
+        // Show chat interface
+        function showChat() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('chatContainer').classList.add('active');
+            addMessage('assistant', 'Hello! Ask me about Luke\'s vinyl collection. Try: "What Grimes records do I have?"', false);
+        }
+        
+        // Show/hide messages
+        function showError(message) {
+            const errorEl = document.getElementById('authError');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            const successEl = document.getElementById('authSuccess');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+        
+        function hideMessages() {
+            document.getElementById('authError').style.display = 'none';
+            document.getElementById('authSuccess').style.display = 'none';
+        }
+        
+        // Add message to chat
+        function addMessage(role, content, toolUsed = false) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+            
+            if (toolUsed) {
+                const badge = document.createElement('div');
+                badge.className = 'tool-badge';
+                badge.textContent = '🔧 Tool Used';
+                contentDiv.appendChild(badge);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addMessage('user', message);
+            input.value = '';
+            
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Thinking...';
+            
+            try {
+                const response = await fetch(CONFIG.API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': idToken
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage('assistant', data.reply, data.tool_used);
+                } else {
+                    addMessage('assistant', `Error: ${data.error || 'Unknown error'}`, false);
+                }
+            } catch (error) {
+                addMessage('assistant', `Error: ${error.message}`, false);
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        }
+        
+        // Send example prompt
+        function sendExamplePrompt(prompt) {
+            document.getElementById('chatInput').value = prompt;
+            sendMessage();
+        }
+        
+        // Handle enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // Initialize on load
+        window.onload = initCognito;
+    </script>
+</body>
+</html>
