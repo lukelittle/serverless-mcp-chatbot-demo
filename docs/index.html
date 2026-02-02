@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FastMCP & the Vinyl Collection Chatbot - Luke Little</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#1f2937',
+                primaryBorderColor: '#764ba2',
+                lineColor: '#667eea',
+                secondaryColor: '#f8f9fa',
+                tertiaryColor: '#e3f2fd',
+                background: '#f8f9fa',
+                mainBkg: '#ffffff',
+                secondBkg: '#f8f9fa',
+                textColor: '#1f2937',
+                border1: '#764ba2',
+                border2: '#667eea',
+                fontSize: '16px'
+            }
+        });
+    </script>
     <style>
         * {
             margin: 0;
@@ -315,18 +337,18 @@
         <div class="slide">
             <h2>The Communication Flow</h2>
             <div class="diagram">
-                <div class="diagram-box">Agent (Client)</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">MCP Server</div>
-                <div style="margin-top: 20px; font-size: 0.9em; color: #1f2937;">
-                    <p>1. Initialize Connection</p>
-                    <p>2. List Available Tools</p>
-                    <p>3. Receive Tool Definitions (JSON Schema)</p>
-                    <p>4. Call Tool (with parameters)</p>
-                    <p>5. Tool Validates & Executes</p>
-                    <p>6. Return Result</p>
-                    <p>7. Agent Uses Result in Response</p>
-                </div>
+                <pre class="mermaid">
+sequenceDiagram
+    participant Agent as Agent (Client)
+    participant Server as MCP Server
+    Agent->>Server: 1. Initialize Connection
+    Agent->>Server: 2. List Available Tools
+    Server->>Agent: 3. Tool Definitions (JSON Schema)
+    Agent->>Server: 4. Call Tool (with parameters)
+    Server->>Server: 5. Validate & Execute
+    Server->>Agent: 6. Return Result
+    Agent->>Agent: 7. Use Result in Response
+                </pre>
             </div>
             <p style="margin-top: 20px;"><strong>Simple, clean, standardized.</strong></p>
         </div>
@@ -447,17 +469,14 @@ def get_repository_info(owner: str, repo: str) -> dict:
                 <li>Frontend: Simple HTML/JS interface</li>
             </ul>
             <div class="diagram">
-                <div class="diagram-box">User</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">Frontend</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">Lambda</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">Bedrock</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">FastMCP</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">S3</div>
+                <pre class="mermaid">
+graph LR
+    A[User] --> B[Frontend]
+    B --> C[Lambda]
+    C --> D[Bedrock]
+    D --> E[FastMCP]
+    E --> F[S3]
+                </pre>
             </div>
             <p style="margin-top: 20px;"><strong>Agent intelligently decides when to use tools vs. general knowledge!</strong></p>
         </div>
@@ -493,11 +512,11 @@ def query_vinyl_collection(
             <h2>AWS Bedrock AgentCore + MCP</h2>
             <p><strong>AgentCore natively supports MCP through Gateway service</strong></p>
             <div class="diagram">
-                <div class="diagram-box">AgentCore Runtime</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">AgentCore Gateway</div>
-                <div class="arrow">→</div>
-                <div class="diagram-box">Your MCP Servers</div>
+                <pre class="mermaid">
+graph LR
+    A[AgentCore Runtime] --> B[AgentCore Gateway]
+    B --> C[Your MCP Servers]
+                </pre>
             </div>
             <ul style="margin-top: 30px;">
                 <li><strong>Tool Discovery</strong> - Lists all registered MCP servers</li>
