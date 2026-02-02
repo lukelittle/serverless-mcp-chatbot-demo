@@ -465,14 +465,17 @@ def get_repository_info(owner: str, repo: str) -> dict:
                 <li>Frontend: Simple HTML/JS interface</li>
             </ul>
             <div class="diagram">
-                <pre class="mermaid">
-graph LR
-    A[User] --> B[Frontend]
-    B --> C[Lambda]
-    C --> D[Bedrock]
-    D --> E[FastMCP]
-    E --> F[S3]
-                </pre>
+                <div class="diagram-box">User</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">Frontend</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">Lambda</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">Bedrock</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">FastMCP</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">S3</div>
             </div>
             <p style="margin-top: 20px;"><strong>Agent intelligently decides when to use tools vs. general knowledge!</strong></p>
         </div>
@@ -508,11 +511,11 @@ def query_vinyl_collection(
             <h2>AWS Bedrock AgentCore + MCP</h2>
             <p><strong>AgentCore natively supports MCP through Gateway service</strong></p>
             <div class="diagram">
-                <pre class="mermaid">
-graph LR
-    A[AgentCore Runtime] --> B[AgentCore Gateway]
-    B --> C[Your MCP Servers]
-                </pre>
+                <div class="diagram-box">AgentCore Runtime</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">AgentCore Gateway</div>
+                <div class="arrow">→</div>
+                <div class="diagram-box">Your MCP Servers</div>
             </div>
             <ul style="margin-top: 30px;">
                 <li><strong>Tool Discovery</strong> - Lists all registered MCP servers</li>
