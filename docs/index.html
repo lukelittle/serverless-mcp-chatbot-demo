@@ -4,28 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FastMCP & the Vinyl Collection Chatbot - Luke Little</title>
-    <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-        mermaid.initialize({ 
-            startOnLoad: true,
-            theme: 'base',
-            themeVariables: {
-                primaryColor: '#667eea',
-                primaryTextColor: '#1f2937',
-                primaryBorderColor: '#764ba2',
-                lineColor: '#667eea',
-                secondaryColor: '#f8f9fa',
-                tertiaryColor: '#e3f2fd',
-                background: '#f8f9fa',
-                mainBkg: '#ffffff',
-                secondBkg: '#f8f9fa',
-                textColor: '#1f2937',
-                border1: '#764ba2',
-                border2: '#667eea',
-                fontSize: '16px'
-            }
-        });
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -675,6 +654,27 @@ graph LR
         
         // Initialize
         showSlide(0);
+        
+        // Initialize Mermaid with custom theme
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#1f2937',
+                primaryBorderColor: '#764ba2',
+                lineColor: '#667eea',
+                secondaryColor: '#f8f9fa',
+                tertiaryColor: '#e3f2fd',
+                background: '#f8f9fa',
+                mainBkg: '#ffffff',
+                secondBkg: '#f8f9fa',
+                textColor: '#1f2937',
+                border1: '#764ba2',
+                border2: '#667eea',
+                fontSize: '16px'
+            }
+        });
     </script>
 </body>
 </html>
