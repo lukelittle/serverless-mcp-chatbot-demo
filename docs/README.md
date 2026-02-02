@@ -4,7 +4,7 @@ This folder contains the HTML slideshow presentation about FastMCP and the Vinyl
 
 ## Viewing the Slideshow
 
-- **Local**: Open `mcp-slideshow.html` in your browser
+- **Local**: Open `index.html` in your browser
 - **GitHub Pages**: Once enabled, visit `https://lukelittle.github.io/serverless-mcp-chatbot-demo/`
 
 ## Enabling GitHub Pages
